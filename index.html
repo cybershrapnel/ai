@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEQUAVIS AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <style>
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col h-screen">
+    <div class="max-w-3xl mx-auto p-6 flex-1 flex flex-col">
+        <h1 class="text-3xl font-bold text-center mb-4">MEQUAVIS AI Chat</h1>
+        <div id="chat-container" class="bg-gray-800 p-4 rounded-lg flex-1 overflow-y-auto space-y-3"></div>
+        <div class="mt-4 flex">
+            <input id="user-input" type="text" class="flex-1 p-3 rounded-lg text-black" placeholder="Ask MEQUAVIS AI...">
+            <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 p-3 ml-2 rounded-lg">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const NGROK_URL = "https://c0ca-34-16-144-255.ngrok-free.app";
+        const chatContainer = document.getElementById("chat-container");
+        const userInput = document.getElementById("user-input");
+        
+        async function sendMessage() {
+            let message = userInput.value.trim();
+            if (!message) return;
+            
+            // Append user message
+            appendMessage("You", message, "bg-blue-600");
+            userInput.value = "";
+            
+            // AI is typing...
+            let aiMessage = appendMessage("MEQUAVIS", "Typing...", "bg-gray-700");
+            
+            try {
+                let response = await axios.post(`${NGROK_URL}/api/generate`, {
+                    model: "deepseek-r1:7b",
+                    prompt: message,
+                    stream: false
+                });
+                
+                aiMessage.innerHTML = response.data.response || "[No Response]";
+            } catch (error) {
+                aiMessage.innerHTML = "⚠️ Error fetching response";
+            }
+        }
+        
+        function appendMessage(sender, text, bgColor) {
+            let messageDiv = document.createElement("div");
+            messageDiv.className = `p-3 ${bgColor} rounded-lg max-w-lg`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong> <span class="inline-block animate-typing">${text}</span>`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+    </script>
+</body>
+</html>
