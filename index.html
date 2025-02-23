@@ -27,35 +27,36 @@
         const NGROK_URL = "https://rpc.nanocheeze.com:8011";
         const chatContainer = document.getElementById("chat-container");
         const userInput = document.getElementById("user-input");
-        
+
         async function sendMessage() {
             let message = userInput.value.trim();
             if (!message) return;
-            
+
             // Append user message
             appendMessage("You", message, "bg-blue-600");
             userInput.value = "";
-            
+
             // AI is typing...
             let aiMessage = appendMessage("MEQUAVIS", "Typing...", "bg-gray-700");
-            
+
             try {
                 let response = await axios.post(`${NGROK_URL}/api/generate`, {
                     model: "deepseek-r1:7b",
                     prompt: message,
                     stream: false
                 });
-                
-                aiMessage.innerHTML = response.data.response || "[No Response]";
+
+                // ✅ FIX: Replace \n with <br> to preserve newlines
+                aiMessage.innerHTML = (response.data.response || "[No Response]").replace(/\n/g, "<br>");
             } catch (error) {
                 aiMessage.innerHTML = "⚠️ Error fetching response";
             }
         }
-        
+
         function appendMessage(sender, text, bgColor) {
             let messageDiv = document.createElement("div");
             messageDiv.className = `p-3 ${bgColor} rounded-lg max-w-lg`;
-            messageDiv.innerHTML = `<strong>${sender}:</strong> <span class="inline-block animate-typing">${text}</span>`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong> <span class="inline-block">${text}</span>`;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return messageDiv;
