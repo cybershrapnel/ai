@@ -203,7 +203,11 @@
     <a href="https://info.nanocheeze.com" target="_blank" class="logo-container">
         <img src="ncz.png" alt="NanoCheeZe Logo" class="logo">
     </a>
-
+<!-- Play Button and Checkbox -->
+<div id="play-toggle-container">
+    <span id="play-toggle-btn" onclick="toggleCheckbox()">🎵</span>
+    <input type="checkbox" id="play-toggle-checkbox" onchange="toggleVideoPersistent()">
+</div>
     <!-- YouTube Background Player -->
     <div id="youtube-background">
         <iframe id="youtube-player" width="100%" height="100%" frameborder="0"
