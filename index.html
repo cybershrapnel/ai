@@ -145,6 +145,17 @@
             object-fit: cover; /* 🔹 Ensures correct cropping behavior */
         }
     </style>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
 </head>
 <body class="bg-gray-900 text-white flex flex-col h-screen">
     <a href="https://info.nanocheeze.com" target="_blank" class="logo-container">
@@ -232,6 +243,10 @@ aiMessageDiv.innerHTML = `<div class="ai-header">
 <div class="think-container" style="display: none;">${thinkContent.replace(/\n/g, "<br>")}</div>
 <p>${responseText.replace(/\n/g, "<br>")}</p>`;
 
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+                
             } catch (error) {
                 aiMessageDiv.innerHTML = "⚠️ Error fetching response";
                 youtubeBackground.style.display = "none";
