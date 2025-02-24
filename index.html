@@ -225,12 +225,12 @@
 
                 youtubeBackground.style.display = "none";
 
-                aiMessageDiv.innerHTML = `<div class="ai-header">
-                    <span class="ai-label">MEQUAVIS:</span>
-                    ${thinkContent ? `<button class="toggle-think-btn" onclick="toggleThink(this)">Show Chain of Thought</button>` : ""}
-                </div>
-                <div class="think-container">${thinkContent.replace(/\n/g, "<br>")}</div>
-                <p>${responseText.replace(/\n/g, "<br>")}</p>`;
+aiMessageDiv.innerHTML = `<div class="ai-header">
+    <span class="ai-label">MEQUAVIS:</span>
+    ${thinkContent ? `<button class="toggle-think-btn" onclick="toggleThink(this)">Show Chain of Thought</button>` : ""}
+</div>
+<div class="think-container" style="display: none;">${thinkContent.replace(/\n/g, "<br>")}</div>
+<p>${responseText.replace(/\n/g, "<br>")}</p>`;
 
             } catch (error) {
                 aiMessageDiv.innerHTML = "⚠️ Error fetching response";
