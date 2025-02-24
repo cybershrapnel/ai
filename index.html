@@ -184,7 +184,18 @@
     height: 18px;
     cursor: pointer;
 }
-
+#video-controls {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 8px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
     </style>
     <script>
         MathJax = {
@@ -207,6 +218,11 @@
 <div id="play-toggle-container">
     <span id="play-toggle-btn" onclick="toggleCheckbox()">🎵</span>
     <input type="checkbox" id="play-toggle-checkbox" onchange="toggleVideoPersistent()">
+</div>
+    <!-- Play/Persistent Video Controls (Top Right) -->
+<div id="video-controls">
+
+    <span id="mute-toggle" onclick="toggleMute()" style="cursor: pointer; display: block; text-align: center; margin-top: 5px;">🔊</span>
 </div>
     <!-- YouTube Background Player -->
     <div id="youtube-background">
@@ -256,6 +272,24 @@
             return messageDiv;
         }
 
+const muteToggleBtn = document.getElementById("mute-toggle-btn");
+let isMuted = true; // 🔇 Default: Muted
+
+// 🔹 Toggle Mute State
+function toggleMute() {
+    isMuted = !isMuted;
+    //muteToggleBtn.innerHTML = isMuted ? "🔇" : "🔊"; // Update icon
+    updateYouTubeVideo(); // Reload video with correct mute state
+}
+
+// 🔹 Update YouTube Video with Mute State
+function updateYouTubeVideo() {
+    let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
+    let randomStart = Math.floor(Math.random() * 61);
+    let muteParam = isMuted ? "1" : "0"; // 🔇 1 = Muted, 0 = Unmuted
+    youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=${muteParam}&start=${randomStart}`;
+}
+        
         async function sendMessage() {
             let message = userInput.value.trim();
             if (!message) return;
