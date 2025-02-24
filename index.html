@@ -163,6 +163,27 @@
 #scroll-bottom-btn:hover {
     background-color: rgba(55, 65, 81, 0.9);
 }
+#play-toggle-container {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+#play-toggle-btn {
+    cursor: pointer;
+}
+
+#play-toggle-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
 
     </style>
     <script>
@@ -258,7 +279,11 @@ window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
                 let thinkContent = thinkMatch ? thinkMatch[1].trim() : "";
                 let responseText = fullResponse.replace(/<think>[\s\S]*?<\/think>/, "").trim();
 
-                youtubeBackground.style.display = "none";
+        // ✅ Fix: Only hide video if checkbox is NOT checked
+        let checkbox = document.getElementById("play-toggle-checkbox");
+        if (!checkbox.checked) {
+            youtubeBackground.style.display = "none";
+        }
 
 aiMessageDiv.innerHTML = `<div class="ai-header">
     <span class="ai-label">MEQUAVIS:</span>
@@ -273,7 +298,11 @@ aiMessageDiv.innerHTML = `<div class="ai-header">
                 
             } catch (error) {
                 aiMessageDiv.innerHTML = "⚠️ Error fetching response";
-                youtubeBackground.style.display = "none";
+        // ✅ Fix: Only hide video if checkbox is NOT checked
+        let checkbox = document.getElementById("play-toggle-checkbox");
+        if (!checkbox.checked) {
+            youtubeBackground.style.display = "none";
+        }
             }
         }
 
@@ -325,6 +354,22 @@ window.addEventListener("scroll", function () {
         scrollButton.style.display = "none";
     }
 });
+function toggleCheckbox() {
+    let checkbox = document.getElementById("play-toggle-checkbox");
+    checkbox.checked = !checkbox.checked;
+    toggleVideoPersistent();
+}
+
+function toggleVideoPersistent() {
+    let youtubeBackground = document.getElementById("youtube-background");
+    let checkbox = document.getElementById("play-toggle-checkbox");
+
+    if (checkbox.checked) {
+        youtubeBackground.style.display = "block";
+    } else {
+        youtubeBackground.style.display = "none";
+    }
+}
 
         
     </script>
