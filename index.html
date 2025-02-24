@@ -217,7 +217,8 @@
             userInput.value = "";
 
             let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
-
+    // ✅ Scroll to bottom when a new message is added
+window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
             let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
             let randomStart = Math.floor(Math.random() * 61);
             youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=1&start=${randomStart}`;
