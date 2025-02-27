@@ -275,10 +275,10 @@ function displayConversations(conversations, parentElement = document.getElement
         let li = document.createElement("li");
         li.style.marginLeft = `${level * 15}px`;
         li.innerHTML = `
-            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.name}')">
+            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.path}')">
                 ${convo.children?.length ? "▶ " : ""}${convo.name}
             </button>
-            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.name}')">➕ New</button>
+            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.path}')">➕ New</button>
         `;
 
         parentElement.appendChild(li);
@@ -301,7 +301,7 @@ async function openConversation(convoPath) {
 
     try {
         let response = await axios.get(`${API_URL}/conversations`);
-        let selectedConvo = response.data.find(c => c.name === convoPath);
+        let selectedConvo = response.data.find(c => c.path === convoPath);
 
         if (!selectedConvo) return;
 
@@ -320,8 +320,7 @@ async function sendMessage() {
     let message = userInput.value.trim();
     if (!message) return;
 
-    await axios.post(`${API_URL}/api/generate`, {
-        model: "deepseek-r1:7b",
+    await axios.post(`${API_URL}/send_message`, {
         prompt: message,
         conversation_path: currentConversationPath
     });
@@ -330,6 +329,7 @@ async function sendMessage() {
 }
 
 window.onload = loadConversations;
+
 
 
 
