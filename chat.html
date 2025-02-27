@@ -256,7 +256,7 @@
     <script>
 
 const API_URL = "https://rpc.nanocheeze.com:8011"; 
-let currentConversationId = null; // Track the active conversation
+let currentConversationPath = null;
 
 async function loadConversations() {
     try {
@@ -275,10 +275,10 @@ function displayConversations(conversations, parentElement = document.getElement
         let li = document.createElement("li");
         li.style.marginLeft = `${level * 15}px`;
         li.innerHTML = `
-            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
-                ${convo.children?.length ? "▶ " : ""}${convo.title}
+            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.name}')">
+                ${convo.children?.length ? "▶ " : ""}${convo.name}
             </button>
-            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.id}')">➕ New</button>
+            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.name}')">➕ New</button>
         `;
 
         parentElement.appendChild(li);
@@ -295,44 +295,16 @@ function displayConversations(conversations, parentElement = document.getElement
         }
     });
 }
-        
-async function sendMessage() {
-    let message = userInput.value.trim();
-    if (!message) return;
 
-    appendMessage("You", message, "user-message");
-    userInput.value = "";
-
-    let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
-
-    try {
-        let response = await axios.post(`${API_URL}/api/generate`, {
-            model: "deepseek-r1:7b",
-            prompt: message,
-            conversation_id: currentConversationId, // Ensure message stays in the selected conversation
-            stream: false
-        });
-
-        let fullResponse = response.data.response || "[No Response]";
-        aiMessageDiv.innerHTML = fullResponse; // Render full response including <think> tags
-
-        loadConversations(); // Refresh sidebar
-
-    } catch (error) {
-        aiMessageDiv.innerHTML = "⚠️ Error fetching response";
-    }
-}
-
-async function openConversation(conversationId) {
-    currentConversationId = conversationId; // Track active conversation
+async function openConversation(convoPath) {
+    currentConversationPath = convoPath;
 
     try {
         let response = await axios.get(`${API_URL}/conversations`);
-        let conversations = response.data;
-        let selectedConvo = conversations.find(c => c.id === conversationId);
+        let selectedConvo = response.data.find(c => c.name === convoPath);
 
         if (!selectedConvo) return;
-        
+
         document.getElementById("chat-container").innerHTML = selectedConvo.messages.map(msg =>
             `<div class="chat-message ${msg.sender === 'User' ? 'user-message' : 'ai-message'}">
                 <strong>${msg.sender}:</strong> <br> ${msg.text}
@@ -344,18 +316,21 @@ async function openConversation(conversationId) {
     }
 }
 
-async function startNewConversation(parentId) {
-    try {
-        let response = await axios.post(`${API_URL}/new_conversation`, { parent_id: parentId });
-        let newConversation = response.data;
-        currentConversationId = newConversation.id; // Set new conversation as active
-        loadConversations();
-    } catch (error) {
-        console.error("Error creating conversation:", error);
-    }
+async function sendMessage() {
+    let message = userInput.value.trim();
+    if (!message) return;
+
+    await axios.post(`${API_URL}/api/generate`, {
+        model: "deepseek-r1:7b",
+        prompt: message,
+        conversation_path: currentConversationPath
+    });
+
+    openConversation(currentConversationPath);
 }
 
 window.onload = loadConversations;
+
 
 
 
