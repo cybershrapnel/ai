@@ -12,7 +12,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
 
   <style>
-    /* Chat Container Styles */
     #chat-container {
       background-color: rgba(31, 41, 55, 0.7);
       padding: 16px;
@@ -56,8 +55,6 @@
       padding: 10px;
       border-radius: 8px;
     }
-
-    /* AI Header / Chain of Thought Toggle */
     .ai-header {
       display: flex;
       justify-content: space-between;
@@ -89,7 +86,6 @@
       font-size: 0.875rem;
     }
 
-    /* Textarea / Buttons */
     textarea {
       flex: 1;
       resize: none;
@@ -102,8 +98,6 @@
     button {
       flex-shrink: 0;
     }
-
-    /* Logo */
     .logo-container {
       position: fixed;
       top: 10px;
@@ -119,7 +113,7 @@
       opacity: 0.8;
     }
 
-    /* YouTube Background */
+    /* YouTube Background Video - Fixed Cropped Behavior */
     #youtube-background {
       position: fixed;
       top: 50%;
@@ -142,8 +136,6 @@
       height: 100%;
       object-fit: cover;
     }
-
-    /* Scroll-to-Bottom Button */
     #scroll-bottom-btn {
       position: fixed;
       bottom: 80px; /* Adjust to stay above the footer */
@@ -162,8 +154,6 @@
     #scroll-bottom-btn:hover {
       background-color: rgba(55, 65, 81, 0.9);
     }
-
-    /* Video Toggle Controls */
     #play-toggle-container {
       position: fixed;
       top: 10px;
@@ -213,24 +203,23 @@
 </head>
 
 <body class="bg-gray-900 text-white flex flex-col h-screen">
-
   <!-- Logo -->
   <a href="https://info.nanocheeze.com" target="_blank" class="logo-container">
     <img src="ncz.png" alt="NanoCheeZe Logo" class="logo">
   </a>
 
-  <!-- Play Toggle -->
+  <!-- Play Button and Checkbox -->
   <div id="play-toggle-container">
     <span id="play-toggle-btn" onclick="toggleCheckbox()">🎵</span>
     <input type="checkbox" id="play-toggle-checkbox" onchange="toggleVideoPersistent()">
   </div>
 
-  <!-- Mute Toggle -->
+  <!-- Video Controls (Top Right) -->
   <div id="video-controls">
     <span id="mute-toggle" onclick="toggleMute()" style="cursor: pointer; display: block; text-align: center; margin-top: 5px;">🔊</span>
   </div>
 
-  <!-- YouTube Background -->
+  <!-- YouTube Background Player -->
   <div id="youtube-background">
     <iframe id="youtube-player" width="100%" height="100%" frameborder="0"
             allow="autoplay; encrypted-media"
@@ -266,27 +255,40 @@
     /*****************************************************
      *            CONFIG / GLOBAL VARIABLES             *
      *****************************************************/
-    const API_URL = "https://rpc.nanocheeze.com:8011"; 
+    // This is where your FastAPI server is listening:
+    //   /api/generate => for sending messages
+    //   /conversations => for listing convos
+    //   /new_conversation => for sub-convo
+    const NGROK_URL = "https://rpc.nanocheeze.com:8011";
+
     const chatContainer = document.getElementById("chat-container");
     const userInput = document.getElementById("user-input");
     const youtubePlayer = document.getElementById("youtube-player");
     const youtubeBackground = document.getElementById("youtube-background");
     const conversationList = document.getElementById("conversation-list");
-    let currentConversationPath = null;
 
-    // YouTube Playlist
+    let currentConversationId = null; // Track which conversation is active
+
     const YOUTUBE_PLAYLIST = [
       "cJJ2XZNWfKA","Xd6EfUewA7w","qN4HjCf5ru0",
       "1nN7sBDjFr8","wvpD-N_tqh4","bnLKFEPDuIQ"
     ];
-    let isMuted = true; // Default to muted
+    let isMuted = true; // Default: Muted
+
+    // Press Enter to send (unless Shift+Enter)
+    userInput.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
 
     /*****************************************************
-     *                 LOAD CONVERSATIONS               *
+     *              LOAD & DISPLAY CONVERSATIONS        *
      *****************************************************/
     async function loadConversations() {
       try {
-        let response = await axios.get(`${API_URL}/conversations`);
+        let response = await axios.get(`${NGROK_URL}/conversations`);
         let conversations = response.data;
         displayConversations(conversations, conversationList);
       } catch (error) {
@@ -294,16 +296,17 @@
       }
     }
 
-    function displayConversations(conversations, parentElement, level = 0) {
-      parentElement.innerHTML = "";
+    function displayConversations(conversations, parentElem, level = 0) {
+      parentElem.innerHTML = "";
 
       conversations.forEach(convo => {
         let li = document.createElement("li");
         li.style.marginLeft = (level * 15) + "px";
 
-        // Each conversation has an id, a title, messages, children
+        // Each conversation has: id, title, messages, children
         li.innerHTML = `
-          <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
+          <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left"
+                  onclick="openConversation('${convo.id}')">
             ${convo.children?.length ? "▶ " : ""}${convo.title}
           </button>
           <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.id}')">
@@ -311,7 +314,7 @@
           </button>
         `;
 
-        parentElement.appendChild(li);
+        parentElem.appendChild(li);
 
         if (convo.children && convo.children.length) {
           let subList = document.createElement("ul");
@@ -323,49 +326,47 @@
             subList.style.display = (subList.style.display === "none") ? "block" : "none";
           });
 
-          // Recursively display sub-conversations
+          // Recursively display subfolders
           displayConversations(convo.children, subList, level + 1);
         }
       });
     }
 
     /*****************************************************
-     *              OPEN/VIEW A CONVERSATION            *
+     *               OPEN A CONVERSATION                *
      *****************************************************/
-    async function openConversation(convoPath) {
-      currentConversationPath = convoPath;  // Track the active conversation
+    async function openConversation(convoId) {
+      currentConversationId = convoId; // Active conversation
 
-      // Load the entire conversation tree, find the target node, and display messages
+      // We have all convos in memory? Actually, we do not store them here locally;
+      // We'll just re-fetch from /conversations and find the node we need.
       try {
-        let response = await axios.get(`${API_URL}/conversations`);
+        let response = await axios.get(`${NGROK_URL}/conversations`);
         let allConversations = response.data;
+        let node = findConvoNode(allConversations, convoId);
 
-        let convoNode = findConvoNode(allConversations, convoPath);
-        if (!convoNode) {
-          console.warn("Conversation not found:", convoPath);
-          chatContainer.innerHTML = "";
+        // Clear chat container
+        chatContainer.innerHTML = "";
+        if (!node) {
+          console.warn("Conversation not found:", convoId);
           return;
         }
 
-        // Render each message
-        chatContainer.innerHTML = "";
-        for (let msg of convoNode.messages) {
-          appendMessage(msg.sender, msg.text, (msg.sender === "User") ? "user-message" : "ai-message");
-        }
-
+        // Display each message
+        node.messages.forEach(msg => {
+          appendMessage(msg.sender, msg.text, msg.sender === "User" ? "user-message" : "ai-message");
+        });
       } catch (error) {
         console.error("Error loading conversation:", error);
       }
     }
 
-    // Recursive search to find a conversation node by "id"
-    function findConvoNode(tree, convoPath) {
-      for (let node of tree) {
-        if (node.id === convoPath) {
-          return node;
-        }
-        if (node.children && node.children.length) {
-          let found = findConvoNode(node.children, convoPath);
+    // Recursively find a conversation by id in the nested tree
+    function findConvoNode(tree, convoId) {
+      for (let item of tree) {
+        if (item.id === convoId) return item;
+        if (item.children && item.children.length) {
+          let found = findConvoNode(item.children, convoId);
           if (found) return found;
         }
       }
@@ -373,71 +374,73 @@
     }
 
     /*****************************************************
-     *               CREATE SUB-CONVERSATION            *
+     *         CREATE A NEW SUB-CONVERSATION            *
      *****************************************************/
-    async function startNewConversation(parentPath) {
+    async function startNewConversation(parentId) {
       try {
-        let response = await axios.post(`${API_URL}/new_conversation`, {
-          parent_id: parentPath
+        let response = await axios.post(`${NGROK_URL}/new_conversation`, {
+          parent_id: parentId
         });
         let newConvo = response.data; 
-        // newConvo.id is the new conversation path
-        currentConversationPath = newConvo.id; 
-
-        // Reload the entire conversation tree, so we see the new subfolder
+        // newConvo => { id: "the new conversation's ID", title: ... }
+        currentConversationId = newConvo.id; 
+        // Reload conversation tree
         loadConversations();
-        // Optionally open the new conversation right away
-        openConversation(currentConversationPath);
+        // Optionally open the new one
+        openConversation(currentConversationId);
       } catch (error) {
         console.error("Error creating sub-conversation:", error);
       }
     }
 
     /*****************************************************
-     *             SENDING A NEW MESSAGE                *
+     *                SENDING A MESSAGE                 *
      *****************************************************/
     async function sendMessage() {
       let message = userInput.value.trim();
       if (!message) return;
 
-      // Display the user message instantly (local)
+      // Show user message locally
       appendMessage("You", message, "user-message");
       userInput.value = "";
 
-      // Show temporary "Replying..." for AI
+      // Show "Replying..." for AI
       let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
 
-      // Show random video in background
+      // Scroll down + random music
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
       let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
       let randomStart = Math.floor(Math.random() * 61);
       youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=1&start=${randomStart}`;
       youtubeBackground.style.display = "block";
 
       try {
-        let response = await axios.post(`${API_URL}/send_message`, {
+        // Post to /api/generate with conversation_id
+        let response = await axios.post(`${NGROK_URL}/api/generate`, {
+          model: "deepseek-r1:7b",
           prompt: message,
-          conversation_path: currentConversationPath
+          conversation_id: currentConversationId,
+          stream: false
         });
-
+        
         let fullResponse = response.data.response || "[No Response]";
-
-        // Extract <think> content
+        // Extract any <think> ... </think>
         let thinkMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/);
         let thinkContent = thinkMatch ? thinkMatch[1].trim() : "";
         let responseText = fullResponse.replace(/<think>[\s\S]*?<\/think>/, "").trim();
 
-        // Hide video if "Play" is not checked
+        // Hide video if not checked
         let checkbox = document.getElementById("play-toggle-checkbox");
         if (!checkbox.checked) {
           youtubeBackground.style.display = "none";
         }
 
-        // Replace the "Replying..." text with the final AI content
+        // Update the AI message from "Replying..." to the final text
         aiMessageDiv.innerHTML = `
           <div class="ai-header">
             <span class="ai-label">MEQUAVIS:</span>
             ${
-              thinkContent 
+              thinkContent
                 ? `<button class="toggle-think-btn" onclick="toggleThink(this)">Show Chain of Thought</button>`
                 : ""
             }
@@ -448,14 +451,13 @@
           <p>${responseText.replace(/\n/g, "<br>")}</p>
         `;
 
-        // Re-render math if present
+        // Re-render math
         if (window.MathJax) {
           MathJax.typesetPromise();
         }
 
-        // Finally, reload the conversation from the server 
-        // to ensure local chat is fully in sync
-        openConversation(currentConversationPath);
+        // Optionally reload the conversation from the server, to ensure in-sync
+        openConversation(currentConversationId);
 
       } catch (error) {
         console.error("Error sending message:", error);
@@ -468,7 +470,7 @@
     }
 
     /*****************************************************
-     *                UI HELPER FUNCTIONS               *
+     *                HELPER FUNCTIONS                  *
      *****************************************************/
     function appendMessage(sender, text, className) {
       let messageDiv = document.createElement("div");
@@ -481,16 +483,17 @@
 
     function toggleThink(button) {
       let thinkContainer = button.parentElement.nextElementSibling;
-      thinkContainer.style.display = (thinkContainer.style.display === "none") ? "block" : "none";
-      button.innerText = (thinkContainer.style.display === "none") ? "Show Chain of Thought" : "Hide Chain of Thought";
+      let isHidden = (thinkContainer.style.display === "none");
+      thinkContainer.style.display = isHidden ? "block" : "none";
+      button.innerText = isHidden ? "Hide Chain of Thought" : "Show Chain of Thought";
     }
 
     function scrollToBottom() {
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     }
 
-    // Show the "scroll to bottom" button only if user scrolled up
-    window.addEventListener("scroll", function () {
+    // Show the button only when user scrolls up
+    window.addEventListener("scroll", function() {
       let scrollButton = document.getElementById("scroll-bottom-btn");
       if (window.innerHeight + window.scrollY < document.body.scrollHeight - 100) {
         scrollButton.style.display = "block";
@@ -499,51 +502,35 @@
       }
     });
 
-    // Press Enter to send (unless Shift+Enter)
-    userInput.addEventListener("keydown", function(event) {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-      }
-    });
-
-    // On page load, fetch conversation list
-    window.onload = function() {
+    // On page load
+    window.addEventListener("load", function() {
       loadConversations();
       adjustVideoSize();
-    };
+    });
+    window.addEventListener("resize", adjustVideoSize);
 
     /*****************************************************
-     *            YOUTUBE / VIDEO CONTROLS              *
+     *             YOUTUBE / VIDEO CONTROLS             *
      *****************************************************/
     function toggleCheckbox() {
       let checkbox = document.getElementById("play-toggle-checkbox");
       checkbox.checked = !checkbox.checked;
       toggleVideoPersistent();
     }
-
     function toggleVideoPersistent() {
       let checkbox = document.getElementById("play-toggle-checkbox");
-      if (checkbox.checked) {
-        youtubeBackground.style.display = "block";
-      } else {
-        youtubeBackground.style.display = "none";
-      }
+      youtubeBackground.style.display = checkbox.checked ? "block" : "none";
     }
-
     function toggleMute() {
       isMuted = !isMuted;
       updateYouTubeVideo();
     }
-
     function updateYouTubeVideo() {
-      // Reload or pick a new random video with correct mute state
       let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
       let randomStart = Math.floor(Math.random() * 61);
       let muteParam = isMuted ? "1" : "0";
       youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=${muteParam}&start=${randomStart}`;
     }
-
     function adjustVideoSize() {
       const video = document.getElementById("youtube-player");
       const screenWidth = window.innerWidth;
@@ -554,20 +541,17 @@
       let newWidth, newHeight;
 
       if (screenAspectRatio > videoAspectRatio) {
-        // Screen is wider than 16:9 → Match width
+        // Screen is wider => match width first
         newWidth = screenWidth;
         newHeight = screenWidth / videoAspectRatio;
       } else {
-        // Screen is taller → Match height
+        // Screen is taller => match height
         newHeight = screenHeight;
         newWidth = screenHeight * videoAspectRatio;
       }
       video.style.width = `${newWidth}px`;
       video.style.height = `${newHeight}px`;
     }
-
-    window.addEventListener("resize", adjustVideoSize);
   </script>
-
 </body>
 </html>
