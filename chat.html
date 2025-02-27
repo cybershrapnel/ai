@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEQUAVIS AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <style>
+        #chat-container {
+            background-color: rgba(31, 41, 55, 0.7);
+            padding: 16px;
+            border-radius: 8px;
+            max-width: 768px;
+            width: 100%;
+            margin: 0 auto;
+            overflow-y: auto;
+        }
+
+        .chat-footer {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 768px;
+            background-color: #1f2937;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-message {
+            max-width: 100%;
+            word-wrap: break-word;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ai-message {
+            background-color: rgba(55, 65, 81, 0.7);
+            color: white;
+            align-self: flex-start;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .user-message {
+            background-color: #2563eb;
+            color: white;
+            align-self: flex-end;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .ai-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .ai-label {
+            font-weight: bold;
+            margin-right: auto;
+        }
+
+        .toggle-think-btn {
+            background-color: #facc15;
+            color: black;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: auto;
+            user-select: none;
+        }
+
+        .think-container {
+            display: none;
+            background-color: #1f2937;
+            padding: 8px;
+            margin-top: 5px;
+            border-left: 4px solid #facc15;
+            color: #facc15; /* Keep text color same as before */
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        textarea {
+            flex: 1;
+            resize: none;
+            height: 50px;
+            overflow-y: auto;
+            border-radius: 8px;
+            padding: 10px;
+            border: none;
+        }
+
+        button {
+            flex-shrink: 0;
+        }
+
+        .logo-container {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+
+        .logo {
+            height: 50px;
+            width: auto;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .logo:hover {
+            opacity: 0.8;
+        }
+
+        /* YouTube Background Video - Fixed Cropped Behavior */
+        #youtube-background {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            display: none;
+            background: black;
+            overflow: hidden;
+        }
+
+        #youtube-player {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 🔹 Ensures correct cropping behavior */
+        }
+        #scroll-bottom-btn {
+    position: fixed;
+    bottom: 80px; /* Adjust to stay above the footer */
+    right: 20px;
+    background-color: rgba(31, 41, 55, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    cursor: pointer;
+    display: none; /* Hidden by default */
+    transition: opacity 0.2s;
+}
+
+#scroll-bottom-btn:hover {
+    background-color: rgba(55, 65, 81, 0.9);
+}
+#play-toggle-container {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+#play-toggle-btn {
+    cursor: pointer;
+}
+
+#play-toggle-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+#video-controls {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 8px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+    </style>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+        <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body class="bg-gray-900 text-white flex flex-col h-screen">
+    <a href="https://info.nanocheeze.com" target="_blank" class="logo-container">
+        <img src="ncz.png" alt="NanoCheeZe Logo" class="logo">
+    </a>
+<!-- Play Button and Checkbox -->
+<div id="play-toggle-container">
+    <span id="play-toggle-btn" onclick="toggleCheckbox()">🎵</span>
+    <input type="checkbox" id="play-toggle-checkbox" onchange="toggleVideoPersistent()">
+</div>
+    <!-- Play/Persistent Video Controls (Top Right) -->
+<div id="video-controls">
+
+    <span id="mute-toggle" onclick="toggleMute()" style="cursor: pointer; display: block; text-align: center; margin-top: 5px;">🔊</span>
+</div>
+    <!-- YouTube Background Player -->
+    <div id="youtube-background">
+        <iframe id="youtube-player" width="100%" height="100%" frameborder="0"
+            allow="autoplay; encrypted-media"
+            allowfullscreen>
+        </iframe>
+    </div>
+
+  <div class="flex h-screen">
+    <!-- Sidebar for Conversations -->
+    <div id="conversation-menu" class="w-1/4 bg-gray-800 p-4 overflow-y-auto">
+        <h2 class="text-xl font-bold mb-3">Conversations</h2>
+        <ul id="conversation-list" class="space-y-2"></ul>
+    </div>
+
+    
+    <div class="chat-container p-6 flex-1 flex flex-col">
+        <h1 class="text-3xl font-bold text-center mb-4">MEQUAVIS AI Chat</h1>
+        <div id="chat-container" class="bg-gray-800 p-4 rounded-lg flex-1 overflow-y-auto space-y-3 mb-20"></div>
+    </div><br><br><br>
+<!-- Scroll to Bottom Button -->
+<button id="scroll-bottom-btn" onclick="scrollToBottom()">⬇️</button>
+
+    <!-- Chat Footer -->
+    <div class="chat-footer">
+        <textarea id="user-input" class="p-3 text-black w-full" placeholder="Ask MEQUAVIS AI..."></textarea>
+        <button id="send-button" onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 p-3 ml-2 rounded-lg">Send</button>
+    </div>
+
+    <script>
+
+const API_URL = "https://rpc.nanocheeze.com:8011"; 
+
+async function loadConversations() {
+    try {
+        let response = await axios.get(`${API_URL}/conversations`);
+        let conversations = response.data;
+        displayConversations(conversations);
+    } catch (error) {
+        console.error("Error fetching conversations:", error);
+    }
+}
+
+function displayConversations(conversations, parentElement = document.getElementById("conversation-list"), level = 0) {
+    parentElement.innerHTML = "";
+
+    conversations.forEach(convo => {
+        let li = document.createElement("li");
+        li.style.marginLeft = `${level * 15}px`;
+        li.innerHTML = `<button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
+            ${convo.children?.length ? "▶ " : ""}${convo.title}
+        </button>`;
+
+        parentElement.appendChild(li);
+
+        if (convo.children && convo.children.length) {
+            let subList = document.createElement("ul");
+            subList.style.display = "none";
+            li.appendChild(subList);
+            li.querySelector("button").addEventListener("click", () => {
+                subList.style.display = subList.style.display === "none" ? "block" : "none";
+            });
+
+            displayConversations(convo.children, subList, level + 1);
+        }
+    });
+}
+
+async function openConversation(parentId) {
+    try {
+        let response = await axios.post(`${API_URL}/new_conversation`, { parent_id: parentId });
+        let newConversation = response.data;
+        document.getElementById("chat-container").innerHTML = "";
+        loadConversations(); // Refresh menu
+    } catch (error) {
+        console.error("Error creating conversation:", error);
+    }
+}
+
+window.onload = loadConversations;
+
+
+      
+        const NGROK_URL = "https://rpc.nanocheeze.com:8011";
+        const chatContainer = document.getElementById("chat-container");
+        const userInput = document.getElementById("user-input");
+        const youtubePlayer = document.getElementById("youtube-player");
+        const youtubeBackground = document.getElementById("youtube-background");
+
+        const YOUTUBE_PLAYLIST = [
+            "cJJ2XZNWfKA", "Xd6EfUewA7w", "qN4HjCf5ru0", "1nN7sBDjFr8", "wvpD-N_tqh4", "bnLKFEPDuIQ"
+        ];
+
+        userInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function appendMessage(sender, text, className) {
+            let messageDiv = document.createElement("div");
+            messageDiv.className = `chat-message ${className}`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong> <br> ${text.replace(/\n/g, "<br>")}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+
+const muteToggleBtn = document.getElementById("mute-toggle-btn");
+let isMuted = true; // 🔇 Default: Muted
+
+// 🔹 Toggle Mute State
+function toggleMute() {
+    isMuted = !isMuted;
+    //muteToggleBtn.innerHTML = isMuted ? "🔇" : "🔊"; // Update icon
+    updateYouTubeVideo(); // Reload video with correct mute state
+}
+
+// 🔹 Update YouTube Video with Mute State
+function updateYouTubeVideo() {
+    let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
+    let randomStart = Math.floor(Math.random() * 61);
+    let muteParam = isMuted ? "1" : "0"; // 🔇 1 = Muted, 0 = Unmuted
+    youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=${muteParam}&start=${randomStart}`;
+}
+        
+        async function sendMessage() {
+            let message = userInput.value.trim();
+            if (!message) return;
+
+            appendMessage("You", message, "user-message");
+            userInput.value = "";
+
+            let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
+    // ✅ Scroll to bottom when a new message is added
+window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+            let randomVideo = YOUTUBE_PLAYLIST[Math.floor(Math.random() * YOUTUBE_PLAYLIST.length)];
+            let randomStart = Math.floor(Math.random() * 61);
+            youtubePlayer.src = `https://www.youtube.com/embed/${randomVideo}?autoplay=1&mute=1&start=${randomStart}`;
+            youtubeBackground.style.display = "block";
+
+            try {
+                let response = await axios.post(`${NGROK_URL}/api/generate`, {
+                    model: "deepseek-r1:7b",
+                    prompt: message,
+                    stream: false
+                });
+
+                let fullResponse = response.data.response || "[No Response]";
+                let thinkMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/);
+                let thinkContent = thinkMatch ? thinkMatch[1].trim() : "";
+                let responseText = fullResponse.replace(/<think>[\s\S]*?<\/think>/, "").trim();
+
+        // ✅ Fix: Only hide video if checkbox is NOT checked
+        let checkbox = document.getElementById("play-toggle-checkbox");
+        if (!checkbox.checked) {
+            youtubeBackground.style.display = "none";
+        }
+
+aiMessageDiv.innerHTML = `<div class="ai-header">
+    <span class="ai-label">MEQUAVIS:</span>
+    ${thinkContent ? `<button class="toggle-think-btn" onclick="toggleThink(this)">Show Chain of Thought</button>` : ""}
+</div>
+<div class="think-container" style="display: none;">${thinkContent.replace(/\n/g, "<br>")}</div>
+<p>${responseText.replace(/\n/g, "<br>")}</p>`;
+
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+                
+            } catch (error) {
+                aiMessageDiv.innerHTML = "⚠️ Error fetching response";
+        // ✅ Fix: Only hide video if checkbox is NOT checked
+        let checkbox = document.getElementById("play-toggle-checkbox");
+        if (!checkbox.checked) {
+            youtubeBackground.style.display = "none";
+        }
+            }
+        }
+
+        function toggleThink(button) {
+            let thinkContainer = button.parentElement.nextElementSibling;
+            thinkContainer.style.display = thinkContainer.style.display === "none" ? "block" : "none";
+            button.innerText = thinkContainer.style.display === "none" ? "Show Chain of Thought" : "Hide Chain of Thought";
+        }
+
+function adjustVideoSize() {
+    const video = document.getElementById("youtube-player");
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    // Aspect ratio of the video (1280x720 = 16:9)
+    const videoAspectRatio = 16 / 9;
+    const screenAspectRatio = screenWidth / screenHeight;
+
+    let newWidth, newHeight;
+
+    if (screenAspectRatio > videoAspectRatio) {
+        // Screen is wider than 16:9 → Match width first
+        newWidth = screenWidth;
+        newHeight = screenWidth / videoAspectRatio;
+    } else {
+        // Screen is taller than 16:9 → Match height first
+        newHeight = screenHeight;
+        newWidth = screenHeight * videoAspectRatio;
+    }
+
+    video.style.width = `${newWidth}px`;
+    video.style.height = `${newHeight}px`;
+}
+
+// Resize video when page loads and when window resizes
+window.addEventListener("load", adjustVideoSize);
+window.addEventListener("resize", adjustVideoSize);
+
+function scrollToBottom() {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+}
+
+// Show the button only when user scrolls up
+window.addEventListener("scroll", function () {
+    let scrollButton = document.getElementById("scroll-bottom-btn");
+    if (window.innerHeight + window.scrollY < document.body.scrollHeight - 100) {
+        scrollButton.style.display = "block";
+    } else {
+        scrollButton.style.display = "none";
+    }
+});
+function toggleCheckbox() {
+    let checkbox = document.getElementById("play-toggle-checkbox");
+    checkbox.checked = !checkbox.checked;
+    toggleVideoPersistent();
+}
+
+function toggleVideoPersistent() {
+    let youtubeBackground = document.getElementById("youtube-background");
+    let checkbox = document.getElementById("play-toggle-checkbox");
+
+    if (checkbox.checked) {
+        youtubeBackground.style.display = "block";
+    } else {
+        youtubeBackground.style.display = "none";
+    }
+}
+
+        
+    </script>
+</body>
+</html>
