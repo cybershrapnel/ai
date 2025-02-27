@@ -256,45 +256,38 @@
     <script>
 
 const API_URL = "https://rpc.nanocheeze.com:8011"; 
-async function loadConversations() {
+let currentConversationId = null; // Track the active conversation
+
+async function sendMessage() {
+    let message = userInput.value.trim();
+    if (!message) return;
+
+    appendMessage("You", message, "user-message");
+    userInput.value = "";
+
+    let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
+
     try {
-        let response = await axios.get(`${API_URL}/conversations`);
-        let conversations = response.data;
-        displayConversations(conversations);
+        let response = await axios.post(`${API_URL}/api/generate`, {
+            model: "deepseek-r1:7b",
+            prompt: message,
+            conversation_id: currentConversationId, // Ensure message stays in the selected conversation
+            stream: false
+        });
+
+        let fullResponse = response.data.response || "[No Response]";
+        aiMessageDiv.innerHTML = fullResponse; // Render full response including <think> tags
+
+        loadConversations(); // Refresh sidebar
+
     } catch (error) {
-        console.error("Error fetching conversations:", error);
+        aiMessageDiv.innerHTML = "⚠️ Error fetching response";
     }
 }
 
-function displayConversations(conversations, parentElement = document.getElementById("conversation-list"), level = 0) {
-    parentElement.innerHTML = "";
-
-    conversations.forEach(convo => {
-        let li = document.createElement("li");
-        li.style.marginLeft = `${level * 15}px`;
-        li.innerHTML = `
-            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
-                ${convo.children?.length ? "▶ " : ""}${convo.title}
-            </button>
-            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.id}')">➕ New</button>
-        `;
-
-        parentElement.appendChild(li);
-
-        if (convo.children && convo.children.length) {
-            let subList = document.createElement("ul");
-            subList.style.display = "none";
-            li.appendChild(subList);
-            li.querySelector("button").addEventListener("click", () => {
-                subList.style.display = subList.style.display === "none" ? "block" : "none";
-            });
-
-            displayConversations(convo.children, subList, level + 1);
-        }
-    });
-}
-
 async function openConversation(conversationId) {
+    currentConversationId = conversationId; // Track active conversation
+
     try {
         let response = await axios.get(`${API_URL}/conversations`);
         let conversations = response.data;
@@ -317,6 +310,7 @@ async function startNewConversation(parentId) {
     try {
         let response = await axios.post(`${API_URL}/new_conversation`, { parent_id: parentId });
         let newConversation = response.data;
+        currentConversationId = newConversation.id; // Set new conversation as active
         loadConversations();
     } catch (error) {
         console.error("Error creating conversation:", error);
@@ -324,6 +318,7 @@ async function startNewConversation(parentId) {
 }
 
 window.onload = loadConversations;
+
 
 
       
