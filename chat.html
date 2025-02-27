@@ -320,13 +320,28 @@ async function sendMessage() {
     let message = userInput.value.trim();
     if (!message) return;
 
-    await axios.post(`${API_URL}/send_message`, {
-        prompt: message,
-        conversation_path: currentConversationPath
-    });
+    appendMessage("You", message, "user-message");
+    userInput.value = "";
 
-    openConversation(currentConversationPath);
+    let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
+
+    try {
+        let response = await axios.post(`${API_URL}/send_message`, {  // ✅ FIXED: Corrected the endpoint
+            prompt: message,
+            conversation_path: currentConversationPath  // ✅ Ensuring message is appended to the correct conversation
+        });
+
+        let fullResponse = response.data.response || "[No Response]";
+        aiMessageDiv.innerHTML = fullResponse; // Render AI response
+
+        openConversation(currentConversationPath);  // ✅ Refresh conversation after sending a message
+
+    } catch (error) {
+        console.error("Error sending message:", error);
+        aiMessageDiv.innerHTML = "⚠️ Error fetching response";
+    }
 }
+
 
 window.onload = loadConversations;
 
