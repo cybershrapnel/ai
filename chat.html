@@ -258,6 +258,44 @@
 const API_URL = "https://rpc.nanocheeze.com:8011"; 
 let currentConversationId = null; // Track the active conversation
 
+async function loadConversations() {
+    try {
+        let response = await axios.get(`${API_URL}/conversations`);
+        let conversations = response.data;
+        displayConversations(conversations);
+    } catch (error) {
+        console.error("Error fetching conversations:", error);
+    }
+}
+
+function displayConversations(conversations, parentElement = document.getElementById("conversation-list"), level = 0) {
+    parentElement.innerHTML = "";
+
+    conversations.forEach(convo => {
+        let li = document.createElement("li");
+        li.style.marginLeft = `${level * 15}px`;
+        li.innerHTML = `
+            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
+                ${convo.children?.length ? "▶ " : ""}${convo.title}
+            </button>
+            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.id}')">➕ New</button>
+        `;
+
+        parentElement.appendChild(li);
+
+        if (convo.children && convo.children.length) {
+            let subList = document.createElement("ul");
+            subList.style.display = "none";
+            li.appendChild(subList);
+            li.querySelector("button").addEventListener("click", () => {
+                subList.style.display = subList.style.display === "none" ? "block" : "none";
+            });
+
+            displayConversations(convo.children, subList, level + 1);
+        }
+    });
+}
+        
 async function sendMessage() {
     let message = userInput.value.trim();
     if (!message) return;
