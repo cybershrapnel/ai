@@ -296,52 +296,17 @@ function displayConversations(conversations, parentElement = document.getElement
     });
 }
 
-async function openConversation(convoPath) {
-    currentConversationPath = convoPath;
-
-    try {
-        let response = await axios.get(`${API_URL}/conversations`);
-        let selectedConvo = response.data.find(c => c.path === convoPath);
-
-        if (!selectedConvo) return;
-
-        document.getElementById("chat-container").innerHTML = selectedConvo.messages.map(msg =>
-            `<div class="chat-message ${msg.sender === 'User' ? 'user-message' : 'ai-message'}">
-                <strong>${msg.sender}:</strong> <br> ${msg.text}
-            </div>`
-        ).join("");
-
-    } catch (error) {
-        console.error("Error loading conversation:", error);
-    }
-}
-
 async function sendMessage() {
     let message = userInput.value.trim();
     if (!message) return;
 
-    appendMessage("You", message, "user-message");
-    userInput.value = "";
+    await axios.post(`${API_URL}/send_message`, {
+        prompt: message,
+        conversation_path: currentConversationPath
+    });
 
-    let aiMessageDiv = appendMessage("MEQUAVIS", "Replying...", "ai-message");
-
-    try {
-        let response = await axios.post(`${API_URL}/send_message`, {  // ✅ FIXED: Corrected the endpoint
-            prompt: message,
-            conversation_path: currentConversationPath  // ✅ Ensuring message is appended to the correct conversation
-        });
-
-        let fullResponse = response.data.response || "[No Response]";
-        aiMessageDiv.innerHTML = fullResponse; // Render AI response
-
-        openConversation(currentConversationPath);  // ✅ Refresh conversation after sending a message
-
-    } catch (error) {
-        console.error("Error sending message:", error);
-        aiMessageDiv.innerHTML = "⚠️ Error fetching response";
-    }
+    openConversation(currentConversationPath);
 }
-
 
 window.onload = loadConversations;
 
