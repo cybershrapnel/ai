@@ -256,7 +256,6 @@
     <script>
 
 const API_URL = "https://rpc.nanocheeze.com:8011"; 
-
 async function loadConversations() {
     try {
         let response = await axios.get(`${API_URL}/conversations`);
@@ -273,9 +272,12 @@ function displayConversations(conversations, parentElement = document.getElement
     conversations.forEach(convo => {
         let li = document.createElement("li");
         li.style.marginLeft = `${level * 15}px`;
-        li.innerHTML = `<button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
-            ${convo.children?.length ? "▶ " : ""}${convo.title}
-        </button>`;
+        li.innerHTML = `
+            <button class="bg-gray-700 text-white px-3 py-2 rounded w-full text-left" onclick="openConversation('${convo.id}')">
+                ${convo.children?.length ? "▶ " : ""}${convo.title}
+            </button>
+            <button class="ml-2 text-sm text-yellow-500" onclick="startNewConversation('${convo.id}')">➕ New</button>
+        `;
 
         parentElement.appendChild(li);
 
@@ -292,12 +294,30 @@ function displayConversations(conversations, parentElement = document.getElement
     });
 }
 
-async function openConversation(parentId) {
+async function openConversation(conversationId) {
+    try {
+        let response = await axios.get(`${API_URL}/conversations`);
+        let conversations = response.data;
+        let selectedConvo = conversations.find(c => c.id === conversationId);
+
+        if (!selectedConvo) return;
+        
+        document.getElementById("chat-container").innerHTML = selectedConvo.messages.map(msg =>
+            `<div class="chat-message ${msg.sender === 'User' ? 'user-message' : 'ai-message'}">
+                <strong>${msg.sender}:</strong> <br> ${msg.text}
+            </div>`
+        ).join("");
+
+    } catch (error) {
+        console.error("Error loading conversation:", error);
+    }
+}
+
+async function startNewConversation(parentId) {
     try {
         let response = await axios.post(`${API_URL}/new_conversation`, { parent_id: parentId });
         let newConversation = response.data;
-        document.getElementById("chat-container").innerHTML = "";
-        loadConversations(); // Refresh menu
+        loadConversations();
     } catch (error) {
         console.error("Error creating conversation:", error);
     }
